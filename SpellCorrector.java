@@ -1,28 +1,34 @@
-package spellCorrection;
-
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static java.lang.System.out;
+
 public class SpellCorrector {
+	public static void main(String[] args) {
+		SpellCorrector sp = SpellCorrector.getInstance();
+		out.println(sp.correct("americ"));
+	}
+
 	private HashMap<String, Integer> NWORDS;
 	
 	private SpellCorrector(){
 		NWORDS = train();
 	}
-	
+
+	private static SpellCorrector spellCorrector;
 	public static SpellCorrector getInstance(){
-		SpellCorrector spellCorrector = new SpellCorrector();
+		synchronized (SpellCorrector.class) {
+			if (spellCorrector == null) spellCorrector = new SpellCorrector();
+		}
 		return spellCorrector;
 	}
 	
 	public String correct(String in){
-		String corr = in;
 		if(NWORDS.containsKey(in))
 			return in;
 		HashSet<String> fromEdit1 = known(edit1(in));
@@ -33,7 +39,7 @@ public class SpellCorrector {
 		if(fromEdit2.size()>0){
 			return maxFreq(fromEdit2);
 		}
-		return corr;
+		return in;
 	}
 	
 	private String maxFreq(HashSet<String> rawSet){
@@ -50,52 +56,39 @@ public class SpellCorrector {
 	private HashSet<String> edit1(String in){
 		HashSet<String> set = new HashSet<String>();
 		ArrayList<String[]> splits = new ArrayList<String[]>();
-		ArrayList<String> deletes = new ArrayList<String>();
-		ArrayList<String> transposes = new ArrayList<String>();
-		ArrayList<String> replaces = new ArrayList<String>();
-		ArrayList<String> inserts = new ArrayList<String>();
 		char[] alphabet = "abcdefghijklmnopqrstuvwxyz".toCharArray();
-		String[] tmpString = new String[2];
 		//splits
 		for(int i = 0; i< in.length()+1; i++){
-			tmpString[0] = in.substring(0, i);
-			tmpString[1] = in.substring(i);
-			splits.add(tmpString.clone());
+			String[] tmpString = {in.substring(0, i), in.substring(i)};
+			splits.add(tmpString);
 		}
 		//deletes
 		for(int i = 0; i< splits.size()-1; i++){
-			tmpString = splits.get(i);
-			deletes.add(tmpString[0]+tmpString[1].substring(1));
+			String[] tmpString = splits.get(i);
+			set.add(tmpString[0]+tmpString[1].substring(1));
 		}
 		//transposes
 		for(int i = 0; i< splits.size()-2; i++){
-			tmpString = splits.get(i);
-			transposes.add(tmpString[0]+tmpString[1].substring(1,2)+tmpString[1].substring(0,1)+tmpString[1].substring(2));
+			String[] tmpString = splits.get(i);
+			set.add(tmpString[0]+tmpString[1].substring(1,2)+tmpString[1].substring(0,1)+tmpString[1].substring(2));
 		}
 		//replaces
 		for(int i = 0; i< splits.size()-1; i++){
-			tmpString = splits.get(i);
+			String[] tmpString = splits.get(i);
 			for(int j = 0; j<alphabet.length; j++){
-				replaces.add(tmpString[0]+alphabet[j]+tmpString[1].substring(1));
+				set.add(tmpString[0]+alphabet[j]+tmpString[1].substring(1));
 			}
 		}
 		//inserts
 		for(int i = 0; i< splits.size(); i++){
-			tmpString = splits.get(i);
+			String[] tmpString = splits.get(i);
 			for(int j = 0; j<alphabet.length; j++){
 				if(tmpString[1] == "")
-					inserts.add(tmpString[0]+alphabet[j]);
+					set.add(tmpString[0]+alphabet[j]);
 				else
-					inserts.add(tmpString[0]+alphabet[j]+tmpString[1]);
+					set.add(tmpString[0]+alphabet[j]+tmpString[1]);
 			}
 		}
-		set = new HashSet<String>(deletes);
-		for(String hasString : transposes)
-			set.add(hasString);
-		for(String hasString : replaces)
-			set.add(hasString);
-		for(String hasString : inserts)
-			set.add(hasString);
 		return set;
 	}
 	//the words with one edit distance
@@ -122,13 +115,11 @@ public class SpellCorrector {
 			//specify appropriate path of the training data in the following line
 			BufferedReader reader = new BufferedReader(new FileReader("big.txt"));
 			String line;
-			String[] regResults;
-			String match;
 			Pattern pattern = Pattern.compile("[a-z]+");
 			while ((line = reader.readLine()) != null){
 				Matcher matcher = pattern.matcher(line);
 				while (matcher.find()){
-					match = matcher.group();
+					String match = matcher.group();
 					if(result.containsKey(match))
 						result.put(match, result.get(match)+1);
 					else result.put(match, 1);
